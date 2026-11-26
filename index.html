@@ -1,0 +1,764 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Mi Tarjeta de Horas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#0E6E66">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: app de una columna tipo tarjeta de marcación; cabecera fija arriba, barra de pestañas fija abajo. */
+:root{
+  --bg:#EEF1F4; --surface:#FFFFFF; --surface-2:#F6F8FA; --ink:#14202E; --muted:#5B6878; --line:#D5DCE4;
+  --accent:#0E6E66; --accent-ink:#FFFFFF; --accent-soft:#DDF0EE;
+  --amber:#A8520A; --amber-soft:#FBEBD9; --warn:#B42318; --warn-soft:#FDE6E4;
+  --f-display:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+  --r:10px; --tabbar:64px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E141B; --surface:#17202A; --surface-2:#1C2733; --ink:#E6EDF3; --muted:#93A1B1; --line:#2A3542;
+  --accent:#3CC2B4; --accent-ink:#04201D; --accent-soft:#123A37;
+  --amber:#F0A44B; --amber-soft:#3A2814; --warn:#F97066; --warn-soft:#3B1A18; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0E141B; --surface:#17202A; --surface-2:#1C2733; --ink:#E6EDF3; --muted:#93A1B1; --line:#2A3542;
+  --accent:#3CC2B4; --accent-ink:#04201D; --accent-soft:#123A37;
+  --amber:#F0A44B; --amber-soft:#3A2814; --warn:#F97066; --warn-soft:#3B1A18; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:0 calc(var(--tabbar) + 24px + env(safe-area-inset-bottom,0px))}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:560px;margin:0 auto}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;letter-spacing:.01em}
+.num,.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:14px 10px}
+header.top h1{font-size:22px}
+header.top .sub{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.iconbtn{width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;cursor:pointer;flex:none}
+.iconbtn svg{width:20px;height:20px}
+
+.banner{font-size:13px;padding:8px 12px;border-radius:8px;background:var(--amber-soft);color:var(--ink);margin-bottom:12px}
+.stack{display:flex;flex-direction:column;gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.09em}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+
+/* Tarjeta de marcación */
+.punch{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.punch-head{padding:16px 16px 6px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.clock{font-family:var(--f-mono);font-size:52px;font-weight:600;line-height:1;letter-spacing:-.02em;padding:4px 16px 14px}
+.slots{display:grid;grid-template-columns:1fr 1fr;border-top:1px dashed var(--line)}
+.slot{padding:12px 16px}
+.slot+.slot{border-left:1px dashed var(--line)}
+.slot .t{font-family:var(--f-mono);font-size:26px;font-weight:600}
+.slot .t.empty{color:var(--line)}
+.punch-foot{padding:14px 16px 16px;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:10px}
+
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:10px 14px;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.big{padding:15px 16px;font-size:17px;width:100%}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--warn);border-color:var(--warn)}
+.btn.danger[data-armed]{background:var(--warn);color:var(--surface)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row.between{justify-content:space-between}
+
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;min-width:0;cursor:pointer;text-align:left;text-decoration:none;color:inherit}
+.tile .v{font-family:var(--f-mono);font-size:22px;font-weight:600;margin-top:4px;white-space:nowrap}
+.tile .s{font-size:12px;color:var(--muted)}
+@media (max-width:380px){.tiles{grid-template-columns:1fr}}
+
+.chip{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--surface-2);color:var(--muted);white-space:nowrap}
+.chip.extra{background:var(--accent-soft);color:var(--accent)}
+.chip.fer{background:var(--amber-soft);color:var(--amber)}
+.chip.late{background:var(--warn-soft);color:var(--warn)}
+
+.list{background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.item{display:flex;gap:12px;align-items:center;padding:12px 14px;cursor:pointer;width:100%;background:none;border:0;text-align:left}
+.item+.item{border-top:1px solid var(--line)}
+.item .main{flex:1;min-width:0}
+.item .t1{font-weight:600}
+.item .t2{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.item .right{text-align:right;flex:none;display:flex;flex-direction:column;gap:4px;align-items:flex-end}
+.datebox{width:44px;flex:none;text-align:center;border:1px solid var(--line);border-radius:8px;padding:4px 0;background:var(--surface-2)}
+.datebox b{display:block;font-family:var(--f-mono);font-size:18px;line-height:1.1}
+.datebox span{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.empty-state{padding:22px 16px;text-align:center;color:var(--muted)}
+
+.monthnav{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.monthnav h2{font-size:20px;text-transform:capitalize}
+.kv{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:14px}
+.kv .num{text-align:right}
+.kv .tot{font-weight:700;border-top:1px solid var(--line);padding-top:6px}
+.formula{font-family:var(--f-mono);font-size:13px;background:var(--surface-2);border:1px dashed var(--line);border-radius:8px;padding:10px 12px;overflow-x:auto}
+.bar{height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line)}
+.bar i{display:block;height:100%;background:var(--accent)}
+
+/* Formularios */
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:13px;font-weight:600;color:var(--muted)}
+.field input,.field select,.field textarea{border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:10px 12px;width:100%;min-width:0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px;cursor:pointer}
+.check input{width:20px;height:20px;margin:1px 0 0;accent-color:var(--accent);flex:none}
+.hint{font-size:12px;color:var(--muted)}
+.preview{padding:10px 12px;border-radius:8px;background:var(--accent-soft);color:var(--ink);font-size:14px}
+.sched{display:flex;flex-direction:column;gap:8px}
+.sched-row{display:grid;grid-template-columns:96px 1fr 1fr 70px;gap:6px;align-items:center}
+.sched-row input[type=time],.sched-row input[type=number]{border:1px solid var(--line);background:var(--surface-2);border-radius:6px;padding:7px 6px;width:100%;min-width:0;font-family:var(--f-mono);font-size:13px}
+.sched-row.off input[type=time],.sched-row.off input[type=number]{opacity:.4}
+.sched-head{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+
+/* Hoja inferior */
+.overlay{position:fixed;inset:0;z-index:40;background:rgba(10,16,24,.45);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:16px 16px 0 0;
+  padding:18px max(16px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.sheet h3{font-size:20px;margin-bottom:12px}
+.sheet form{display:flex;flex-direction:column;gap:12px}
+.sheet .actions{display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;margin-top:4px}
+.sheet .actions .btn.primary{flex:1}
+
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
+  padding:0 max(4px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) max(4px,env(safe-area-inset-left,0px))}
+nav.tabs .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);height:var(--tabbar)}
+nav.tabs a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--muted);text-decoration:none;font-size:11px;font-weight:600}
+nav.tabs a svg{width:22px;height:22px}
+nav.tabs a[aria-current="page"]{color:var(--accent)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--tabbar) + 16px + env(safe-area-inset-bottom,0px));z-index:50;background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:99px;font-size:14px;font-weight:600}
+@media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(24px);opacity:.6}}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div><div class="sub" id="hsub">Control de asistencia</div><h1 id="htitle">Hoy</h1></div>
+    <a class="iconbtn" href="#ajustes" aria-label="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></a>
+  </header>
+  <div id="banner"></div>
+  <main id="main"></main>
+</div>
+
+<nav class="tabs" aria-label="Secciones"><div class="in">
+  <a href="#hoy" data-tab="hoy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Hoy</a>
+  <a href="#horas" data-tab="horas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Horas</a>
+  <a href="#feriados" data-tab="feriados"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M12 13.5l1 2 2.2.3-1.6 1.5.4 2.2-2-1.1-2 1.1.4-2.2-1.6-1.5 2.2-.3z"/></svg>Feriados</a>
+  <a href="#vacaciones" data-tab="vacaciones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3a9 9 0 0 1 9 9H3a9 9 0 0 1 9-9z"/><path d="M12 12v9M9 21h6"/></svg>Vacaciones</a>
+  <a href="#saldos" data-tab="saldos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h10"/><path d="M17 15l2 2 3-4"/></svg>Saldos</a>
+</div></nav>
+<div id="sheetRoot"></div>
+<div id="toastRoot"></div>
+
+<script>
+(function(){
+"use strict";
+const DIAS=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const COLS=['registros','feriados','devoluciones','vacaciones','gestiones'];
+const TIPOS={feriado:'Descanso compensatorio por feriado',extra_tiempo:'Horas extra devueltas en tiempo libre',extra_pago:'Horas extra pagadas'};
+const LS_KEY='mi-tarjeta-horas-v1';
+function defHorario(){return DIAS.map((_,i)=>({lab:i>=1&&i<=5,ent:'08:00',sal:'17:00',ref:60}));}
+const DEFAULT_CONFIG={basico:0,moneda:'Bs',tolerancia:5,vacConteo:'habiles',fechaIngreso:'',salidaDesde:'15:00',umbralSalida:'18:50',extraDesde:'19:00',saldoIniExtraH:0,saldoIniFerDias:0,horario:defHorario()};
+
+const state={config:null,registros:{},feriados:{},devoluciones:{},vacaciones:{},gestiones:{},mode:'loading',stale:false,mes:null};
+let db=null;
+
+/* ---------- utilidades ---------- */
+const pad=n=>String(n).padStart(2,'0');
+const isoDe=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const hoyISO=()=>isoDe(new Date());
+const ahoraHM=()=>{const d=new Date();return `${pad(d.getHours())}:${pad(d.getMinutes())}`;};
+const parseISO=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);};
+const dowDe=s=>parseISO(s).getDay();
+const toMin=t=>{if(!t)return null;const [h,m]=t.split(':').map(Number);return h*60+m;};
+const diffMin=(a,b)=>{let d=toMin(b)-toMin(a);if(d<0)d+=1440;return d;};
+const fmtHM=min=>{const s=min<0?'−':'';min=Math.abs(Math.round(min));return `${s}${Math.floor(min/60)}:${pad(min%60)}`;};
+const nf=new Intl.NumberFormat('es-BO',{minimumFractionDigits:2,maximumFractionDigits:2});
+const nf1=new Intl.NumberFormat('es-BO',{maximumFractionDigits:2});
+const money=n=>`${cfg().moneda} ${nf.format(n||0)}`;
+const dias=n=>`${nf1.format(n)} ${Math.abs(n)===1?'día':'días'}`;
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fLarga=s=>parseISO(s).toLocaleDateString('es-BO',{weekday:'long',day:'numeric',month:'long'});
+const fMedia=s=>parseISO(s).toLocaleDateString('es-BO',{day:'numeric',month:'short',year:'numeric'});
+const diasEntre=(a,b)=>Math.round((parseISO(b)-parseISO(a))/864e5)+1;
+const masDiasISO=(s,n)=>{const d=parseISO(s);d.setDate(d.getDate()+n);return isoDe(d);};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const num=v=>{const n=parseFloat(String(v??'').replace(',','.'));return isFinite(n)?n:0;};
+
+function cfg(){
+  const c=Object.assign({},DEFAULT_CONFIG,state.config||{});
+  const h=Array.isArray(c.horario)&&c.horario.length===7?c.horario:defHorario();
+  c.horario=h.map((x,i)=>Object.assign({},defHorario()[i],x));
+  return c;
+}
+const horario=d=>cfg().horario[d];
+function jornada(d){const h=horario(d);if(!h.lab)return 0;return Math.max(0,diffMin(h.ent,h.sal)-num(h.ref));}
+function trabajado(r){if(!r.entrada||!r.salida)return null;return Math.max(0,diffMin(r.entrada,r.salida)-num(r.ref));}
+/* ---------- calendario de feriados: Bolivia + Santa Cruz ---------- */
+// DS 2750 (2016): feriados nacionales. Art. 3: si caen domingo, el lunes siguiente es feriado,
+// salvo Carnaval, Viernes Santo, Corpus Christi y 2 de noviembre.
+function pascua(y){const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),
+  h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mes=Math.floor((h+l-7*m+114)/31),dia=((h+l-7*m+114)%31)+1;
+  return new Date(y,mes-1,dia);}
+const masDias=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x;};
+// Cambios por decreto ya publicados (se aplican encima de las reglas generales)
+const DECRETOS={
+  2026:{fuente:'DS 5521',quitar:['2026-01-22'],agregar:[
+    {fecha:'2026-01-23',nombre:'Día del Estado Plurinacional (trasladado del 22)',ambito:'Nacional'},
+    {fecha:'2026-06-05',nombre:'Feriado adicional de Corpus Christi',ambito:'Nacional'},
+    {fecha:'2026-08-07',nombre:'Feriado adicional por la Independencia',ambito:'Nacional'}],
+   renombrar:{'2026-06-22':'Año Nuevo Andino Amazónico Chaqueño (trasladado del domingo)'}}
+};
+const _cacheFer={};
+function generarFeriados(y){
+  if(_cacheFer[y])return _cacheFer[y];
+  const P=pascua(y), out=[];
+  const fijo=(m,d,nombre,ambito,movible)=>{let dt=new Date(y,m-1,d),n=nombre;
+    if(movible&&dt.getDay()===0){dt=masDias(dt,1);n+=' (trasladado del domingo)';}
+    out.push({fecha:isoDe(dt),nombre:n,ambito,fuente:ambito==='Santa Cruz'?'Departamental':'DS 2750'});};
+  const movil=(dt,nombre)=>out.push({fecha:isoDe(dt),nombre,ambito:'Nacional',fuente:'DS 2750'});
+  fijo(1,1,'Año Nuevo','Nacional',true);
+  fijo(1,22,'Día del Estado Plurinacional','Nacional',true);
+  movil(masDias(P,-48),'Carnaval (lunes)');
+  movil(masDias(P,-47),'Carnaval (martes)');
+  movil(masDias(P,-2),'Viernes Santo');
+  fijo(5,1,'Día del Trabajo','Nacional',true);
+  movil(masDias(P,60),'Corpus Christi');
+  fijo(6,21,'Año Nuevo Andino Amazónico','Nacional',true);
+  fijo(8,6,'Día de la Independencia','Nacional',true);
+  fijo(9,24,'Aniversario de Santa Cruz','Santa Cruz',true);
+  fijo(11,2,'Día de Todos los Difuntos','Nacional',false);
+  fijo(12,25,'Navidad','Nacional',true);
+  const dc=DECRETOS[y];
+  let lista=out;
+  if(dc){lista=out.filter(f=>!dc.quitar.includes(f.fecha));
+    lista.forEach(f=>{if(dc.renombrar&&dc.renombrar[f.fecha]){f.nombre=dc.renombrar[f.fecha];f.fuente=dc.fuente;}});
+    dc.agregar.forEach(a=>lista.push(Object.assign({fuente:dc.fuente},a)));}
+  lista.sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  return _cacheFer[y]=lista;
+}
+// Une el calendario automático con lo que guardaste (trabajado, anulado, agregados por decreto)
+function feriadosDelAnio(y){
+  y=String(y);const map={};
+  generarFeriados(Number(y)).forEach(g=>map[g.fecha]=Object.assign({auto:true},g));
+  Object.values(state.feriados).forEach(f=>{if(!f.fecha||!f.fecha.startsWith(y+'-'))return;
+    const base=map[f.fecha];
+    map[f.fecha]=Object.assign({},base||{ambito:f.ambito||'Nacional'},f,{auto:!!base,nombre:f.nombre||(base&&base.nombre)||'Feriado',fuente:f.fuente||(base&&base.fuente)||''});});
+  return Object.values(map).sort((a,b)=>a.fecha.localeCompare(b.fecha));
+}
+function feriadoEn(fecha){return feriadosDelAnio(fecha.slice(0,4)).find(f=>f.fecha===fecha&&!f.anulado)||null;}
+function proximoFeriado(desde){const y=Number(desde.slice(0,4));
+  return [...feriadosDelAnio(y),...feriadosDelAnio(y+1)].find(f=>f.fecha>=desde&&!f.anulado)||null;}
+function feriadoTrabajado(fecha){const f=state.feriados[fecha];return !!(f&&f.trabajado&&!f.anulado);}
+// Horas extra: entrada antes de tu hora de ingreso + salida después del umbral (18:50), contada desde las 19:00.
+// En día de descanso todo lo trabajado es extra. Feriado trabajado se compensa con días, no con horas.
+function extraDetalle(r){
+  const out={man:0,tar:0};
+  const h=horario(dowDe(r.fecha)), c=cfg();
+  if(!h.lab){out.tar=trabajado(r)||0;return out;}
+  if(r.entrada&&toMin(r.entrada)<toMin(h.ent))out.man=toMin(h.ent)-toMin(r.entrada);
+  if(r.salida){const s=toMin(r.salida),umbral=Math.max(toMin(c.umbralSalida),toMin(h.sal)),desde=Math.max(toMin(c.extraDesde),toMin(h.sal));
+    if(s>umbral)out.tar=Math.max(0,s-desde);}
+  return out;
+}
+const esManual=r=>r.extraManual!==undefined&&r.extraManual!==null&&r.extraManual!=='';
+function extra(r){
+  if(esManual(r))return num(r.extraManual)*60;
+  if(feriadoTrabajado(r.fecha))return 0;
+  const d=extraDetalle(r);return d.man+d.tar;
+}
+function detalleTxt(r){
+  if(esManual(r))return 'extra anotada a mano';
+  if(feriadoTrabajado(r.fecha))return 'feriado: se compensa con días';
+  if(!horario(dowDe(r.fecha)).lab)return 'día de descanso: todo es extra';
+  const d=extraDetalle(r);const p=[];if(d.man)p.push(`${fmtHM(d.man)} antes de entrar`);if(d.tar)p.push(`${fmtHM(d.tar)} después de las ${cfg().extraDesde}`);
+  return p.join(' + ');
+}
+/* ---------- vacaciones según la Ley General del Trabajo (Art. 44) ---------- */
+// 1 a 5 años: 15 días hábiles · más de 5 hasta 10: 20 · más de 10: 30
+const diasPorGestion=n=>n<=5?15:n<=10?20:30;
+const masAnios=(d,n)=>new Date(d.getFullYear()+n,d.getMonth(),d.getDate());
+function vacGestiones(){
+  const fi=cfg().fechaIngreso;if(!fi)return null;
+  const ing=parseISO(fi),hoy=parseISO(hoyISO());
+  if(ing>hoy)return null;
+  const lista=[];let n=1;
+  while(masAnios(ing,n)<=hoy&&n<80){
+    const ini=isoDe(masAnios(ing,n-1)),fin=isoDe(masDias(masAnios(ing,n),-1));
+    const manual=num((state.gestiones['g'+n]||{}).tomados);
+    const porPeriodos=Object.values(state.vacaciones).filter(v=>Number(v.gestion)===n).reduce((a,v)=>a+diasVac(v),0);
+    const corr=diasPorGestion(n);
+    lista.push({n,ini,fin,corr,manual,porPeriodos,tomados:manual+porPeriodos,saldo:corr-manual-porPeriodos,nota:(state.gestiones['g'+n]||{}).nota||''});
+    n++;
+  }
+  const iniAct=masAnios(ing,n-1),finAct=masAnios(ing,n);
+  const meses=(hoy.getFullYear()-iniAct.getFullYear())*12+hoy.getMonth()-iniAct.getMonth()-(hoy.getDate()<iniAct.getDate()?1:0);
+  const actual={n,ini:isoDe(iniAct),cumple:isoDe(finAct),corr:diasPorGestion(n),meses:Math.max(0,meses),
+    pct:Math.min(100,(hoy-iniAct)/(finAct-iniAct)*100),
+    tomadosAdelantados:Object.values(state.vacaciones).filter(v=>Number(v.gestion)===n).reduce((a,v)=>a+diasVac(v),0)};
+  const disponible=lista.reduce((a,g)=>a+g.saldo,0)-actual.tomadosAdelantados;
+  const anios=lista.length,mesesAnt=actual.meses;
+  return {lista,actual,disponible,antig:`${anios} ${anios===1?'año':'años'}${mesesAnt?` y ${mesesAnt} ${mesesAnt===1?'mes':'meses'}`:''}`};
+}
+function tardanza(r){
+  const h=horario(dowDe(r.fecha));if(!h.lab||!r.entrada)return 0;
+  const t=toMin(r.entrada)-toMin(h.ent);
+  return t>num(cfg().tolerancia)?t:0;
+}
+const compFeriado=f=>(f.trabajado&&!f.anulado)?(f.descanso?2:1):0;
+function valores(){const b=num(cfg().basico);const h=b/30/8;return {hora:h,extra:h*2};}
+function saldos(){
+  const c=cfg();
+  const regs=Object.values(state.registros);
+  const devs=Object.values(state.devoluciones);
+  const sum=t=>devs.filter(d=>d.tipo===t).reduce((a,d)=>a+num(d.cantidad),0);
+  const extraReg=regs.reduce((a,r)=>a+extra(r),0);
+  const extraGen=num(c.saldoIniExtraH)*60+extraReg;
+  const extraTiempo=sum('extra_tiempo')*60, extraPago=sum('extra_pago')*60;
+  const ferReg=Object.values(state.feriados).reduce((a,f)=>a+compFeriado(f),0);
+  const ferGen=num(c.saldoIniFerDias)+ferReg, ferComp=sum('feriado');
+  const vg=vacGestiones();
+  return {extraReg,extraGen,extraTiempo,extraPago,extraPend:extraGen-extraTiempo-extraPago,
+    ferReg,ferGen,ferComp,ferPend:ferGen-ferComp,vg,vacDisp:vg?vg.disponible:null};
+}
+
+/* ---------- almacenamiento ---------- */
+function saveLocal(){try{const o={config:state.config};COLS.forEach(c=>o[c]=state[c]);localStorage.setItem(LS_KEY,JSON.stringify(o));}catch(e){}}
+function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LS_KEY)||'null');if(d){state.config=d.config||null;COLS.forEach(c=>state[c]=d[c]||{});}}catch(e){}}
+async function put(col,id,data){
+  if(state.mode==='db'){await db.collection(col).doc(id).set(data);}
+  else{state[col]=Object.assign({},state[col],{[id]:data});saveLocal();render();}
+}
+async function del(col,id){
+  if(state.mode==='db'){await db.collection(col).doc(id).delete();}
+  else{const o=Object.assign({},state[col]);delete o[id];state[col]=o;saveLocal();render();}
+}
+async function putConfig(c){
+  if(state.mode==='db'){await db.doc('config/main').set(c);}
+  else{state.config=c;saveLocal();render();}
+}
+async function init(){
+  let t0=Date.now();
+  while(!(window.claude&&window.claude.use)&&Date.now()-t0<1500){await new Promise(r=>setTimeout(r,100));}
+  try{db=window.claude&&window.claude.use?await window.claude.use('db'):null;}catch(e){db=null;}
+  if(!db){state.mode='local';loadLocal();render();return;}
+  state.mode='db';
+  let pending=COLS.length+1;
+  const timer=setTimeout(()=>{state.stale=true;render();},10000);
+  const done=snap=>{if(!snap.metadata.fromCache&&pending>0){pending--;if(pending===0){clearTimeout(timer);state.stale=false;}}};
+  const onErr=e=>{clearTimeout(timer);state.stale=true;render();console.warn(e);};
+  db.doc('config/main').onSnapshot(s=>{state.config=s.exists?JSON.parse(JSON.stringify(s.data())):null;done(s);render();},onErr);
+  COLS.forEach(col=>db.collection(col).onSnapshot(s=>{const o={};s.docs.forEach(d=>o[d.id]=d.data());state[col]=o;done(s);render();},onErr));
+  render();
+}
+
+/* ---------- vistas ---------- */
+const TITULOS={hoy:'Hoy',horas:'Horas',feriados:'Feriados',vacaciones:'Vacaciones',saldos:'Saldos',ajustes:'Ajustes'};
+function tab(){const h=location.hash.replace('#','');return TITULOS[h]?h:'hoy';}
+
+function vHoy(){
+  const f=hoyISO(), d=dowDe(f), h=horario(d), r=state.registros[f], s=saldos(), v=valores();
+  const fer=feriadoEn(f), prox=proximoFeriado(masDiasISO(f,1));
+  let estado, boton;
+  const now=ahoraHM(), turnoSalida=toMin(now)>=toMin(cfg().salidaDesde);
+  const corregir=`<button class="btn ghost" data-act="editar-registro" data-id="${f}">Corregir marcación</button>`;
+  if(r&&r.salida){const w=trabajado(r),x=extra(r),dt=detalleTxt(r);estado=`Jornada cerrada${w!=null?' · '+fmtHM(w)+' h trabajadas':''}`+(x?` · <b>${fmtHM(x)} h extra</b>${dt?' ('+esc(dt)+')':''}`:' · sin horas extra');boton=corregir;}
+  else if(turnoSalida){
+    estado=r&&r.entrada?`Entraste a las ${r.entrada}`+(extraDetalle(r).man&&h.lab?` · ${fmtHM(extraDetalle(r).man)} h extra por entrada anticipada`:''):'Hoy no marcaste entrada; puedes corregirla después';
+    const sim=Object.assign({fecha:f,entrada:r?r.entrada:'',salida:now,ref:r?r.ref:0},{});const xs=(r&&r.entrada&&!feriadoTrabajado(f))?extra(sim):0;
+    boton=`<button class="btn primary big" data-act="marcar-salida">Marcar salida · ${now}</button>`+(xs?`<div class="small muted">Si sales ahora: ${fmtHM(xs)} h extra</div>`:'')+(r&&r.entrada?'':corregir);}
+  else if(!r||!r.entrada){estado='Sin marcar';boton=`<button class="btn primary big" data-act="marcar-entrada">Marcar entrada · ${now}</button>`;}
+  else{const xm=h.lab?extraDetalle(r).man:0;estado=`Entrada marcada${xm?` · ${fmtHM(xm)} h extra por entrada anticipada`:''}. El botón de salida aparece a las ${cfg().salidaDesde}.`;boton=corregir;}
+  const tard=r?tardanza(r):0;
+  return `<div class="stack">
+  <section class="punch" aria-label="Marcación de hoy">
+    <div class="punch-head">
+      <div><div class="label">${esc(fLarga(f))}</div>
+      <div class="small muted">${h.lab?`Horario ${h.ent}–${h.sal} · refrigerio ${num(h.ref)} min`:'Día de descanso'}</div></div>
+      <div class="row">${fer?`<span class="chip fer">Feriado${fer.nombre?': '+esc(fer.nombre):''}</span>`:''}${tard?`<span class="chip late">Tardanza ${tard} min</span>`:''}</div>
+    </div>
+    <div class="clock" id="reloj">${ahoraHM()}</div>
+    <div class="slots">
+      <div class="slot"><div class="label">Entrada</div><div class="t ${r&&r.entrada?'':'empty'}">${r&&r.entrada?r.entrada:'--:--'}</div></div>
+      <div class="slot"><div class="label">Salida</div><div class="t ${r&&r.salida?'':'empty'}">${r&&r.salida?r.salida:'--:--'}</div></div>
+    </div>
+    <div class="punch-foot"><div class="small muted">${estado}</div>${boton}</div>
+  </section>
+  <div class="tiles">
+    <a class="tile" href="#saldos"><div class="label">Horas extra</div><div class="v">${fmtHM(s.extraPend)}</div><div class="s">${num(cfg().basico)?money(s.extraPend/60*v.extra):'por cobrar o devolver'}</div></a>
+    <a class="tile" href="#saldos"><div class="label">Feriados</div><div class="v">${nf1.format(s.ferPend)}</div><div class="s">${Math.abs(s.ferPend)===1?'día':'días'} por compensar</div></a>
+    <a class="tile" href="#vacaciones"><div class="label">Vacaciones</div><div class="v">${s.vg?nf1.format(s.vacDisp):'—'}</div><div class="s">${s.vg?'días disponibles':'pon tu fecha de ingreso'}</div></a>
+  </div>
+  ${prox?`<a class="card row between" href="#feriados" style="text-decoration:none;color:inherit"><div style="min-width:0"><div class="label">Próximo feriado</div><div class="t1" style="font-weight:600">${esc(prox.nombre)}</div><div class="small muted" style="text-transform:capitalize">${esc(fLarga(prox.fecha))}</div></div><span class="chip fer">${diasEntre(f,prox.fecha)-1===1?'mañana':'en '+(diasEntre(f,prox.fecha)-1)+' días'}</span></a>`:''}
+  ${!num(cfg().basico)?`<a class="card small" href="#ajustes" style="text-decoration:none;color:inherit"><b>Configura tu haber básico y horario</b><br><span class="muted">Así la app calcula cuánto te deben por horas extra y qué días son de descanso.</span></a>`:''}
+  </div>`;
+}
+
+function itemRegistro(r){
+  const dt=parseISO(r.fecha), w=trabajado(r), x=extra(r), t=tardanza(r), fer=feriadoTrabajado(r.fecha)?{trabajado:true}:null;
+  return `<button class="item" data-act="editar-registro" data-id="${r.fecha}">
+    <div class="datebox"><b>${dt.getDate()}</b><span>${DIAS[dt.getDay()].slice(0,3)}</span></div>
+    <div class="main"><div class="t1 mono">${r.entrada||'--:--'} → ${r.salida||'--:--'}</div>
+      <div class="t2">${w==null?'Falta marcar salida':fmtHM(w)+' h trabajadas'}${r.nota?' · '+esc(r.nota):''}</div></div>
+    <div class="right">${x?`<span class="chip extra">+${fmtHM(x)} extra</span>`:''}${fer&&fer.trabajado?`<span class="chip fer">Feriado</span>`:''}${t?`<span class="chip late">${t} min tarde</span>`:''}</div>
+  </button>`;
+}
+function vHoras(){
+  if(!state.mes)state.mes=hoyISO().slice(0,7);
+  const [y,m]=state.mes.split('-').map(Number);
+  const nombre=new Date(y,m-1,1).toLocaleDateString('es-BO',{month:'long',year:'numeric'});
+  const regs=Object.values(state.registros).filter(r=>r.fecha&&r.fecha.startsWith(state.mes)).sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const totW=regs.reduce((a,r)=>a+(trabajado(r)||0),0), totX=regs.reduce((a,r)=>a+extra(r),0), nT=regs.filter(r=>tardanza(r)).length;
+  return `<div class="stack">
+  <div class="monthnav"><button class="iconbtn" data-act="mes" data-d="-1" aria-label="Mes anterior">‹</button><h2>${nombre}</h2><button class="iconbtn" data-act="mes" data-d="1" aria-label="Mes siguiente">›</button></div>
+  <div class="card"><div class="kv">
+    <span>Días registrados</span><span class="num">${regs.length}</span>
+    <span>Horas trabajadas</span><span class="num">${fmtHM(totW)} h</span>
+    <span>Horas extra del mes</span><span class="num">${fmtHM(totX)} h</span>
+    <span>Tardanzas</span><span class="num">${nT}</span>
+    ${num(cfg().basico)?`<span class="tot">Valor de las horas extra</span><span class="num tot">${money(totX/60*valores().extra)}</span>`:''}
+  </div></div>
+  <button class="btn primary" data-act="nuevo-registro">Agregar día</button>
+  <div class="list">${regs.length?regs.map(itemRegistro).join(''):`<div class="empty-state">No hay marcaciones en este mes.<br>Marca tu entrada en <b>Hoy</b> o agrega un día pasado.</div>`}</div>
+  </div>`;
+}
+
+function vFeriados(){
+  if(!state.anioFer)state.anioFer=new Date().getFullYear();
+  const y=state.anioFer, fs=feriadosDelAnio(y), s=saldos(), hoy=hoyISO();
+  const compAnio=fs.reduce((a,f)=>a+compFeriado(f),0);
+  const item=f=>{const dt=parseISO(f.fecha),c=compFeriado(f),pasado=f.fecha<=hoy;
+    let estado,chip;
+    if(f.anulado){estado='No se aplicó';chip=`<span class="chip">Anulado</span>`;}
+    else if(f.trabajado){estado=f.descanso?'Trabajado en tu día de descanso':'Trabajado en día laboral';chip=`<span class="chip fer">+${dias(c)}</span>`;}
+    else if(pasado){estado='No trabajado · toca si lo trabajaste';chip=`<span class="chip">Libre</span>`;}
+    else{estado=horario(dt.getDay()).lab?'Cae en día laboral':'Cae en tu día de descanso';chip=`<span class="chip">Próximo</span>`;}
+    return `<button class="item" data-act="editar-feriado" data-id="${f.fecha}" ${f.anulado?'style="opacity:.55"':''}>
+    <div class="datebox"><b>${dt.getDate()}</b><span>${dt.toLocaleDateString('es-BO',{month:'short'}).replace('.','')}</span></div>
+    <div class="main"><div class="t1">${esc(f.nombre)}</div><div class="t2">${DIAS[dt.getDay()]} · ${esc(f.ambito||'Nacional')}${f.origen==='decreto'?' · agregado por ti':''}${f.fuente?' · '+esc(f.fuente):''}<br>${estado}</div></div>
+    <div class="right">${chip}</div></button>`;};
+  return `<div class="stack">
+  <div class="monthnav"><button class="iconbtn" data-act="anio-fer" data-d="-1" aria-label="Año anterior">‹</button><h2>Feriados ${y}</h2><button class="iconbtn" data-act="anio-fer" data-d="1" aria-label="Año siguiente">›</button></div>
+  <div class="card"><div class="kv">
+    <span>Días generados en ${y}</span><span class="num">${nf1.format(compAnio)}</span>
+    <span>Total generado (todos los años)</span><span class="num">${nf1.format(s.ferGen)}</span>
+    <span>Días ya compensados</span><span class="num">${nf1.format(s.ferComp)}</span>
+    <span class="tot">Te deben</span><span class="num tot">${dias(s.ferPend)}</span>
+  </div>
+  <p class="hint" style="margin:10px 0 0">Calendario de Bolivia y Santa Cruz. Toca un feriado para marcar que lo trabajaste: si cayó en tu día de descanso suma <b>2 días</b>; en día laboral, <b>1 día</b>.</p></div>
+  <button class="btn primary" data-act="nuevo-feriado">Agregar feriado por decreto</button>
+  <div class="list">${fs.map(item).join('')}</div>
+  </div>`;
+}
+function vVacaciones(){
+  const vg=vacGestiones(), c=cfg();
+  if(!vg)return `<div class="stack"><div class="card stack" style="gap:10px">
+    <div class="label">Vacaciones según la Ley General del Trabajo</div>
+    <p style="margin:0">Indica tu fecha de ingreso y la app calcula los días que te corresponden por cada gestión cumplida:</p>
+    <div class="kv"><span>De 1 a 5 años</span><span class="num">15 días hábiles</span><span>Más de 5 hasta 10 años</span><span class="num">20 días hábiles</span><span>Más de 10 años</span><span class="num">30 días hábiles</span></div>
+    <button class="btn primary" data-act="fecha-ingreso">Poner fecha de ingreso</button></div></div>`;
+  const a=vg.actual;
+  const vs=Object.entries(state.vacaciones).map(([id,v])=>Object.assign({id},v)).sort((x,y)=>(y.inicio||'').localeCompare(x.inicio||''));
+  return `<div class="stack">
+  <div class="card stack" style="gap:10px">
+    <div class="label">Días disponibles</div>
+    <div class="num" style="font-size:34px;font-weight:600;line-height:1">${nf1.format(vg.disponible)} <span class="small muted" style="font-family:var(--f-body)">días ${conteoTxt()}</span></div>
+    <div class="small muted">Ingresaste el ${fMedia(c.fechaIngreso)} · antigüedad ${vg.antig}. <a href="#" data-act="fecha-ingreso">Cambiar</a></div>
+  </div>
+  <div class="card stack" style="gap:8px">
+    <div class="row between"><div class="label">Gestión ${a.n} en curso</div><span class="small muted">${a.meses} de 12 meses</span></div>
+    <div class="bar" role="img" aria-label="${a.meses} de 12 meses"><i style="width:${a.pct}%"></i></div>
+    <div class="small muted">El ${fMedia(a.cumple)} cumples la gestión y se suman <b>${a.corr} días</b>.${a.tomadosAdelantados?` Ya adelantaste ${dias(a.tomadosAdelantados)} de esta gestión.`:''}</div>
+  </div>
+  <h2 style="font-size:18px">Gestiones cumplidas</h2>
+  <div class="list">${vg.lista.length?[...vg.lista].reverse().map(g=>`<button class="item" data-act="editar-gestion" data-id="${g.n}">
+    <div class="datebox"><b>${g.n}</b><span>gest.</span></div>
+    <div class="main"><div class="t1">${fMedia(g.ini)} – ${fMedia(g.fin)}</div><div class="t2">Corresponden ${g.corr} · tomados ${nf1.format(g.tomados)}${g.porPeriodos?` (${nf1.format(g.porPeriodos)} en períodos registrados)`:''}${g.nota?' · '+esc(g.nota):''}</div></div>
+    <div class="right"><span class="chip ${g.saldo>0?'extra':''}">${g.saldo>0?'quedan '+dias(g.saldo):g.saldo<0?'excedido '+dias(-g.saldo):'completa'}</span></div></button>`).join(''):`<div class="empty-state">Aún no cumples tu primera gestión. Las vacaciones se ganan al cumplir un año de trabajo.</div>`}</div>
+  <p class="hint" style="margin:0">Toca una gestión para anotar cuántos días ya tomaste de ella. Para salidas nuevas usa “Registrar vacaciones”: los días se descuentan solos de la gestión que elijas.</p>
+  <button class="btn primary" data-act="nueva-vacacion">Registrar vacaciones</button>
+  ${vs.length?`<div class="list">${vs.map(v=>`<button class="item" data-act="editar-vacacion" data-id="${esc(v.id)}">
+    <div class="main"><div class="t1">${fMedia(v.inicio)} → ${fMedia(v.fin)}</div><div class="t2">${v.gestion?'Gestión '+esc(v.gestion):'Sin gestión asignada'}${v.nota?' · '+esc(v.nota):''}</div></div>
+    <div class="right"><span class="chip extra">${dias(diasVac(v))}</span></div></button>`).join('')}</div>`:''}
+  </div>`;
+}
+
+function vSaldos(){
+  const s=saldos(), v=valores(), b=num(cfg().basico);
+  const ds=Object.entries(state.devoluciones).map(([id,d])=>Object.assign({id},d)).sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+  return `<div class="stack">
+  <div class="card"><div class="label" style="margin-bottom:8px">Horas extra</div><div class="kv">
+    ${num(cfg().saldoIniExtraH)?`<span>Saldo inicial</span><span class="num">${fmtHM(num(cfg().saldoIniExtraH)*60)} h</span>`:''}
+    <span>Generadas en tus marcaciones</span><span class="num">${fmtHM(s.extraReg)} h</span>
+    <span>Devueltas en tiempo libre</span><span class="num">−${fmtHM(s.extraTiempo)} h</span>
+    <span>Pagadas</span><span class="num">−${fmtHM(s.extraPago)} h</span>
+    <span class="tot">Pendientes</span><span class="num tot">${fmtHM(s.extraPend)} h</span>
+    ${b?`<span class="tot">Equivale a</span><span class="num tot">${money(s.extraPend/60*v.extra)}</span>`:''}
+  </div>
+  ${b?`<div class="formula" style="margin-top:12px">${money(b)} ÷ 30 ÷ 8 = ${money(v.hora)} /h<br>${money(v.hora)} × 2 = <b>${money(v.extra)}</b> por hora extra</div>`:`<p class="hint">Ingresa tu haber básico en <a href="#ajustes">Ajustes</a> para ver el monto.</p>`}
+  </div>
+  <div class="card"><div class="label" style="margin-bottom:8px">Feriados</div><div class="kv">
+    <span>Días generados</span><span class="num">${nf1.format(s.ferGen)}</span>
+    <span>Días compensados</span><span class="num">−${nf1.format(s.ferComp)}</span>
+    <span class="tot">Te deben</span><span class="num tot">${dias(s.ferPend)}</span>
+  </div></div>
+  <button class="btn primary" data-act="nueva-devolucion">Registrar devolución o pago</button>
+  <div class="list">${ds.length?ds.map(d=>{const h=d.tipo!=='feriado';return `<button class="item" data-act="editar-devolucion" data-id="${esc(d.id)}">
+    <div class="main"><div class="t1">${esc(TIPOS[d.tipo]||d.tipo)}</div><div class="t2">${d.fecha?fMedia(d.fecha):''}${d.nota?' · '+esc(d.nota):''}</div></div>
+    <div class="right"><span class="chip ${h?'extra':'fer'}">−${h?fmtHM(num(d.cantidad)*60)+' h':dias(num(d.cantidad))}</span>${d.tipo==='extra_pago'&&b?`<span class="small muted num">${money(num(d.cantidad)*v.extra)}</span>`:''}</div></button>`;}).join(''):`<div class="empty-state">Cuando te den un día libre por un feriado, te devuelvan horas o te las paguen, regístralo aquí para descontarlo del saldo.</div>`}</div>
+  </div>`;
+}
+
+function vAjustes(){
+  const c=cfg(), v=valores();
+  return `<form class="stack" id="fAjustes">
+  <div class="card stack" style="gap:12px">
+    <div class="label">Remuneración</div>
+    <div class="grid2"><div class="field"><label for="a_basico">Haber básico mensual</label><input id="a_basico" name="basico" inputmode="decimal" value="${num(c.basico)||''}" placeholder="0.00"></div>
+    <div class="field"><label for="a_moneda">Moneda</label><input id="a_moneda" name="moneda" value="${esc(c.moneda)}" maxlength="5"></div></div>
+    <div class="formula" id="a_formula">${num(c.basico)?`${money(c.basico)} ÷ 30 ÷ 8 × 2 = <b>${money(v.extra)}</b> por hora extra`:'Hora extra = haber básico ÷ 30 ÷ 8 × 2'}</div>
+  </div>
+  <div class="card stack" style="gap:10px">
+    <div class="label">Horario semanal</div>
+    <div class="sched">
+      <div class="sched-row sched-head"><span>Día</span><span>Entrada</span><span>Salida</span><span>Refrig.</span></div>
+      ${c.horario.map((h,i)=>`<div class="sched-row ${h.lab?'':'off'}" data-row="${i}">
+        <label class="check" style="font-size:13px"><input type="checkbox" id="h${i}_lab" name="h${i}_lab" ${h.lab?'checked':''}>${DIAS[i].slice(0,3)}</label>
+        <input type="time" id="h${i}_ent" name="h${i}_ent" value="${esc(h.ent)}" aria-label="Entrada ${DIAS[i]}">
+        <input type="time" id="h${i}_sal" name="h${i}_sal" value="${esc(h.sal)}" aria-label="Salida ${DIAS[i]}">
+        <input type="number" id="h${i}_ref" name="h${i}_ref" value="${num(h.ref)}" min="0" step="5" aria-label="Refrigerio en minutos ${DIAS[i]}">
+      </div>`).join('')}
+    </div>
+    <div class="hint">Marca los días que trabajas. Los días sin marcar son tu descanso: un feriado trabajado ahí vale 2 días. Refrigerio en minutos, se descuenta de las horas trabajadas.</div>
+    <div class="field"><label for="a_tol">Tolerancia de ingreso (minutos)</label><input id="a_tol" name="tolerancia" type="number" min="0" value="${num(c.tolerancia)}"></div>
+  </div>
+  <div class="card stack" style="gap:12px">
+    <div class="label">Marcación y horas extra</div>
+    <div class="field"><label for="a_sd">Mostrar el botón de salida desde</label><input type="time" id="a_sd" name="salidaDesde" value="${esc(c.salidaDesde)}"></div>
+    <div class="grid2">
+      <div class="field"><label for="a_us">Hay extra si sales después de</label><input type="time" id="a_us" name="umbralSalida" value="${esc(c.umbralSalida)}"></div>
+      <div class="field"><label for="a_ed">La extra se cuenta desde</label><input type="time" id="a_ed" name="extraDesde" value="${esc(c.extraDesde)}"></div>
+    </div>
+    <div class="hint">Ejemplo: sales a las 19:40, después de las ${esc(c.umbralSalida)}, y se cuentan 0:40 h extra desde las ${esc(c.extraDesde)}. Si entras antes de tu hora de ingreso, esos minutos también son extra.</div>
+  </div>
+  <div class="card stack" style="gap:12px">
+    <div class="label">Vacaciones y saldos iniciales</div>
+    <div class="grid2">
+      <div class="field"><label for="a_fi">Fecha de ingreso al trabajo</label><input type="date" id="a_fi" name="fechaIngreso" value="${esc(c.fechaIngreso||'')}"></div>
+      <div class="field"><label for="a_vc">Vacaciones en días</label><select id="a_vc" name="vacConteo"><option value="habiles" ${c.vacConteo!=='calendario'?'selected':''}>Hábiles</option><option value="calendario" ${c.vacConteo==='calendario'?'selected':''}>Calendario</option></select></div>
+    </div>
+    <div class="hint">Ley General del Trabajo, Art. 44: 15 días hábiles de 1 a 5 años de antigüedad, 20 de 5 a 10 años y 30 desde los 10 años.</div>
+    <div class="hint">Si ya tenías saldos antes de empezar a usar la app, anótalos aquí:</div>
+    <div class="grid2">
+      <div class="field"><label for="a_ix">Horas extra pendientes</label><input id="a_ix" name="saldoIniExtraH" inputmode="decimal" value="${num(c.saldoIniExtraH)}"></div>
+      <div class="field"><label for="a_if">Días de feriado pendientes</label><input id="a_if" name="saldoIniFerDias" inputmode="decimal" value="${num(c.saldoIniFerDias)}"></div>
+    </div>
+  </div>
+  <button class="btn primary big" type="submit">Guardar ajustes</button>
+  </form>`;
+}
+
+let lastTab=null;
+function render(){
+  const t=tab();
+  document.getElementById('htitle').textContent=TITULOS[t];
+  document.querySelectorAll('nav.tabs a').forEach(a=>{if(a.dataset.tab===t)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
+  const bn=document.getElementById('banner');
+  bn.innerHTML=state.mode==='local'?`<div class="banner">Tus datos se guardan solo en este navegador. Ábrela desde claude.ai con tu cuenta para guardarlos en la nube.</div>`
+    :state.mode==='loading'?`<div class="banner">Cargando tus datos…</div>`
+    :state.stale?`<div class="banner">No se pudo conectar todavía. Lo que ves puede estar desactualizado.</div>`:'';
+  // No redibujar el formulario de ajustes mientras se edita
+  if(t==='ajustes'&&lastTab==='ajustes'&&document.getElementById('fAjustes')&&document.activeElement&&document.getElementById('fAjustes').contains(document.activeElement))return;
+  const m=document.getElementById('main');
+  m.innerHTML={hoy:vHoy,horas:vHoras,feriados:vFeriados,vacaciones:vVacaciones,saldos:vSaldos,ajustes:vAjustes}[t]();
+  if(t!==lastTab)window.scrollTo(0,0);
+  lastTab=t;
+}
+
+/* ---------- hojas (formularios) ---------- */
+function toast(msg){const r=document.getElementById('toastRoot');r.innerHTML=`<div class="toast" role="status">${esc(msg)}</div>`;clearTimeout(toast.t);toast.t=setTimeout(()=>r.innerHTML='',1800);}
+function closeSheet(){document.getElementById('sheetRoot').innerHTML='';}
+function openSheet(title,fields,{onSave,onDelete,onInput}={}){
+  const root=document.getElementById('sheetRoot');
+  root.innerHTML=`<div class="overlay" data-close><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}">
+    <h3>${esc(title)}</h3><form id="sheetForm" novalidate>${fields}
+    <div class="actions">${onDelete?`<button type="button" class="btn danger" data-del>Eliminar</button>`:'<button type="button" class="btn ghost" data-cancel>Cancelar</button>'}<button type="submit" class="btn primary">Guardar</button></div>
+    <div class="hint" id="sheetErr" role="alert"></div></form></div></div>`;
+  const form=root.querySelector('form');
+  const vals=()=>{const o={};new FormData(form).forEach((v,k)=>o[k]=v);form.querySelectorAll('input[type=checkbox]').forEach(c=>o[c.name]=c.checked);return o;};
+  if(onInput){form.addEventListener('input',()=>onInput(form,vals()));form.addEventListener('change',e=>onInput(form,vals(),e));onInput(form,vals());}
+  root.querySelector('.overlay').addEventListener('click',e=>{if(e.target.hasAttribute('data-close'))closeSheet();});
+  const cn=root.querySelector('[data-cancel]');if(cn)cn.onclick=closeSheet;
+  const dl=root.querySelector('[data-del]');
+  if(dl)dl.onclick=async()=>{if(!dl.hasAttribute('data-armed')){dl.setAttribute('data-armed','');dl.textContent='Toca de nuevo para eliminar';return;}
+    try{await onDelete();closeSheet();toast('Eliminado');}catch(e){form.querySelector('#sheetErr').textContent='No se pudo eliminar. Revisa tu conexión e inténtalo otra vez.';}};
+  form.addEventListener('submit',async e=>{e.preventDefault();const err=form.querySelector('#sheetErr');
+    try{const msg=await onSave(vals());if(typeof msg==='string'&&msg){err.textContent=msg;return;}closeSheet();toast('Guardado');}
+    catch(x){console.warn(x);err.textContent='No se pudo guardar. Revisa tu conexión e inténtalo otra vez.';}});
+  const first=form.querySelector('input,select');if(first)setTimeout(()=>first.focus({preventScroll:true}),50);
+}
+const fld=(id,label,input)=>`<div class="field"><label for="${id}">${label}</label>${input}</div>`;
+
+function sheetRegistro(fecha){
+  const r=fecha?state.registros[fecha]:null, f=fecha||hoyISO(), h=horario(dowDe(f));
+  openSheet(r?'Editar marcación':'Agregar día',
+    fld('r_fecha','Fecha',`<input type="date" id="r_fecha" name="fecha" value="${f}" ${r?'readonly':''} required>`)+
+    `<div class="grid2">${fld('r_ent','Entrada',`<input type="time" id="r_ent" name="entrada" value="${esc(r?r.entrada:h.ent)}">`)}${fld('r_sal','Salida',`<input type="time" id="r_sal" name="salida" value="${esc(r?r.salida:h.sal)}">`)}</div>`+
+    `<div class="grid2">${fld('r_ref','Refrigerio (min)',`<input type="number" id="r_ref" name="ref" min="0" step="5" value="${r?num(r.ref):(h.lab?num(h.ref):0)}">`)}${fld('r_xm','Horas extra (manual)',`<input id="r_xm" name="extraManual" inputmode="decimal" placeholder="Automático" value="${r&&r.extraManual!=null?esc(r.extraManual):''}">`)}</div>`+
+    `<div class="hint">Deja “horas extra” vacío para que se calculen solas: la entrada antes de tu hora de ingreso más la salida después de las ${esc(cfg().umbralSalida)}, contada desde las ${esc(cfg().extraDesde)}.</div>`+
+    fld('r_nota','Nota',`<input id="r_nota" name="nota" value="${esc(r?r.nota:'')}" maxlength="140" placeholder="Opcional">`)+
+    `<div class="preview" id="r_prev"></div>`,
+    {onInput:(form,v)=>{const tmp={fecha:v.fecha,entrada:v.entrada,salida:v.salida,ref:v.ref,extraManual:v.extraManual};const w=trabajado(tmp);const d=v.fecha?dowDe(v.fecha):0;
+      if(!v.fecha){form.querySelector('#r_prev').textContent='';return;}
+      const x=extra(tmp),dt=detalleTxt(tmp);
+      form.querySelector('#r_prev').textContent=(w==null?'':`${fmtHM(w)} h trabajadas · `)+`${fmtHM(x)} h extra`+(dt?` (${dt})`:'');},
+     onSave:async v=>{if(!v.fecha)return 'Elige una fecha.';if(!r&&state.registros[v.fecha])return 'Ese día ya tiene marcación. Edítala desde la lista.';
+      const x=String(v.extraManual||'').trim();
+      await put('registros',v.fecha,{fecha:v.fecha,entrada:v.entrada||'',salida:v.salida||'',ref:num(v.ref),extraManual:x===''?null:num(x),nota:(v.nota||'').trim()});},
+     onDelete:r?()=>del('registros',fecha):null});
+}
+function sheetFeriado(fecha){
+  const stored=fecha?state.feriados[fecha]:null;
+  const e=fecha?feriadosDelAnio(fecha.slice(0,4)).find(x=>x.fecha===fecha):null;
+  if(e&&e.auto){
+    // Feriado del calendario oficial: solo se marca si lo trabajaste o si no se aplicó
+    const dt=parseISO(fecha), lab=horario(dt.getDay()).lab;
+    openSheet(e.nombre,
+      `<div class="small muted" style="text-transform:capitalize">${esc(fLarga(fecha))} · ${esc(e.ambito)}${e.fuente?' · '+esc(e.fuente):''}</div>`+
+      `<label class="check"><input type="checkbox" id="f_trab" name="trabajado" ${stored&&stored.trabajado?'checked':''}><span>Trabajé este feriado</span></label>`+
+      `<label class="check"><input type="checkbox" id="f_desc" name="descanso" ${stored?(stored.descanso?'checked':''):(lab?'':'checked')}><span>Cayó en mi día de descanso<br><span class="hint">Se marca solo según tu horario; cámbialo si ese día tenías otro turno.</span></span></label>`+
+      `<label class="check"><input type="checkbox" id="f_anul" name="anulado" ${stored&&stored.anulado?'checked':''}><span>Este feriado no se aplicó<br><span class="hint">Úsalo si un decreto lo trasladó a otra fecha; luego agrega la nueva fecha con “Agregar feriado por decreto”.</span></span></label>`+
+      `<div class="preview" id="f_prev"></div>`,
+      {onInput:(form,v)=>{form.querySelector('#f_prev').textContent=v.anulado?'No cuenta como feriado.':v.trabajado?`Te deben compensar ${dias(compFeriado(v))}.`:'No suma días: no lo trabajaste.';},
+       onSave:async v=>{const doc={fecha,trabajado:!!v.trabajado,descanso:!!v.descanso,anulado:!!v.anulado};
+         if(!doc.trabajado&&!doc.anulado){if(stored)await del('feriados',fecha);return;}
+         await put('feriados',fecha,doc);}});
+    return;
+  }
+  // Feriado agregado por decreto (o anotado a mano)
+  const f=stored;
+  openSheet(f?'Editar feriado':'Agregar feriado por decreto',
+    fld('f_fecha','Fecha del feriado',`<input type="date" id="f_fecha" name="fecha" value="${f?f.fecha:hoyISO()}" ${f?'readonly':''}>`)+
+    fld('f_nom','Motivo',`<input id="f_nom" name="nombre" value="${esc(f?f.nombre:'')}" maxlength="80" placeholder="Ej. Feriado adicional por Carnaval">`)+
+    `<div class="grid2">${fld('f_fuente','Decreto o resolución',`<input id="f_fuente" name="fuente" value="${esc(f?f.fuente:'')}" maxlength="60" placeholder="Ej. DS 5600">`)}${fld('f_amb','Alcance',`<select id="f_amb" name="ambito"><option ${!f||f.ambito!=='Santa Cruz'?'selected':''}>Nacional</option><option ${f&&f.ambito==='Santa Cruz'?'selected':''}>Santa Cruz</option></select>`)}</div>`+
+    `<label class="check"><input type="checkbox" id="f_trab" name="trabajado" ${f&&f.trabajado?'checked':''}><span>Trabajé este feriado</span></label>`+
+    `<label class="check"><input type="checkbox" id="f_desc" name="descanso" ${f&&f.descanso?'checked':''}><span>Cayó en mi día de descanso<br><span class="hint">Se marca solo según tu horario; cámbialo si ese día tenías otro turno.</span></span></label>`+
+    `<div class="preview" id="f_prev"></div>`,
+    {onInput:(form,v,ev)=>{if(!f&&(!ev||(ev.target&&ev.target.name==='fecha'))&&v.fecha){form.querySelector('#f_desc').checked=!horario(dowDe(v.fecha)).lab;v.descanso=form.querySelector('#f_desc').checked;}
+      form.querySelector('#f_prev').textContent=v.fecha?`${DIAS[dowDe(v.fecha)]}: ${v.trabajado?'te deben compensar '+dias(compFeriado(v)):'si lo trabajas, márcalo para sumar días'}.`:'';},
+     onSave:async v=>{if(!v.fecha)return 'Elige una fecha.';
+      if(!f){const ya=feriadosDelAnio(v.fecha.slice(0,4)).find(x=>x.fecha===v.fecha&&!x.anulado);if(ya)return `Ese día ya es feriado (${ya.nombre}). Tócalo en la lista para marcarlo.`;}
+      if(!(v.nombre||'').trim())return 'Escribe el motivo del feriado.';
+      await put('feriados',v.fecha,{fecha:v.fecha,nombre:v.nombre.trim(),fuente:(v.fuente||'').trim(),ambito:v.ambito||'Nacional',origen:'decreto',trabajado:!!v.trabajado,descanso:!!v.descanso});},
+     onDelete:f?()=>del('feriados',fecha):null});
+}
+function diasVac(v){
+  if(!v.inicio||!v.fin||v.fin<v.inicio)return 0;
+  if(cfg().vacConteo==='calendario')return diasEntre(v.inicio,v.fin);
+  let n=0;for(let d=parseISO(v.inicio),fin=parseISO(v.fin);d<=fin;d.setDate(d.getDate()+1)){if(horario(d.getDay()).lab&&!feriadoEn(isoDe(d)))n++;}
+  return n;
+}
+const conteoTxt=()=>cfg().vacConteo==='calendario'?'calendario':'hábiles';
+function sheetVacacion(id){
+  const vv=id?state.vacaciones[id]:null, h=hoyISO(), vg=vacGestiones();
+  const opts=vg?[...vg.lista.map(g=>({n:g.n,t:`Gestión ${g.n} (quedan ${nf1.format(g.saldo)})`,s:g.saldo})),{n:vg.actual.n,t:`Gestión ${vg.actual.n} en curso (adelanto)`,s:0}]:[];
+  const def=vv&&vv.gestion?Number(vv.gestion):((opts.find(o=>o.s>0)||opts[opts.length-1]||{}).n);
+  openSheet(vv?'Editar vacaciones':'Registrar vacaciones',
+    `<div class="grid2">${fld('v_ini','Desde',`<input type="date" id="v_ini" name="inicio" value="${vv?vv.inicio:h}">`)}${fld('v_fin','Hasta',`<input type="date" id="v_fin" name="fin" value="${vv?vv.fin:h}">`)}</div>`+
+    (opts.length?fld('v_ges','Descontar de',`<select id="v_ges" name="gestion">${opts.map(o=>`<option value="${o.n}" ${o.n===def?'selected':''}>${o.t}</option>`).join('')}</select>`):'')+
+    fld('v_nota','Nota',`<input id="v_nota" name="nota" value="${esc(vv?vv.nota:'')}" maxlength="140" placeholder="Opcional">`)+`<div class="preview" id="v_prev"></div>`,
+    {onInput:(form,v)=>{form.querySelector('#v_prev').textContent=v.inicio&&v.fin&&v.fin>=v.inicio?`${dias(diasVac(v))} ${conteoTxt()} (${diasEntre(v.inicio,v.fin)} calendario)`:'La fecha final debe ser igual o posterior a la inicial.';},
+     onSave:async v=>{if(!v.inicio||!v.fin||v.fin<v.inicio)return 'Revisa las fechas.';await put('vacaciones',id||uid(),{inicio:v.inicio,fin:v.fin,gestion:v.gestion?Number(v.gestion):null,nota:(v.nota||'').trim()});},
+     onDelete:vv?()=>del('vacaciones',id):null});
+}
+function sheetGestion(n){
+  const vg=vacGestiones();const g=vg&&vg.lista.find(x=>x.n===n);if(!g)return;
+  openSheet(`Gestión ${n}`,
+    `<div class="small muted">${fMedia(g.ini)} – ${fMedia(g.fin)} · te corresponden <b>${g.corr} días ${conteoTxt()}</b></div>`+
+    fld('g_tom','Días que ya tomaste de esta gestión',`<input id="g_tom" name="tomados" inputmode="decimal" value="${g.manual||''}" placeholder="0">`)+
+    (g.porPeriodos?`<div class="hint">Además hay ${dias(g.porPeriodos)} en períodos registrados con fechas; esos se suman solos.</div>`:'')+
+    fld('g_nota','Nota',`<input id="g_nota" name="nota" value="${esc(g.nota)}" maxlength="140" placeholder="Ej. 10 días en diciembre, 5 en abril">`)+
+    `<div class="preview" id="g_prev"></div>`,
+    {onInput:(form,v)=>{const s=g.corr-num(v.tomados)-g.porPeriodos;form.querySelector('#g_prev').textContent=s>=0?`Te quedan ${dias(s)} de esta gestión.`:`Tomaste ${dias(-s)} más de lo que corresponde.`;},
+     onSave:async v=>{const t=num(v.tomados);if(t<0)return 'La cantidad no puede ser negativa.';
+       if(!t&&!(v.nota||'').trim()){if(state.gestiones['g'+n])await del('gestiones','g'+n);return;}
+       await put('gestiones','g'+n,{gestion:n,tomados:t,nota:(v.nota||'').trim()});}});
+}
+function sheetFechaIngreso(){
+  openSheet('Fecha de ingreso',
+    fld('fi_f','¿Cuándo empezaste a trabajar?',`<input type="date" id="fi_f" name="fecha" value="${esc(cfg().fechaIngreso||'')}" max="${hoyISO()}">`)+
+    `<div class="hint">Con esta fecha se calculan tus gestiones y los días de vacación según la Ley General del Trabajo.</div>`,
+    {onSave:async v=>{if(!v.fecha||v.fecha>hoyISO())return 'Elige una fecha válida.';await putConfig(Object.assign({},state.config||{},{fechaIngreso:v.fecha}));}});
+}
+function sheetDevolucion(id){
+  const d=id?state.devoluciones[id]:null;
+  openSheet(d?'Editar movimiento':'Registrar devolución o pago',
+    fld('d_tipo','Tipo',`<select id="d_tipo" name="tipo">${Object.entries(TIPOS).map(([k,t])=>`<option value="${k}" ${d&&d.tipo===k?'selected':''}>${t}</option>`).join('')}</select>`)+
+    `<div class="grid2">${fld('d_fecha','Fecha',`<input type="date" id="d_fecha" name="fecha" value="${d?d.fecha:hoyISO()}">`)}${fld('d_cant','<span id="d_unit">Cantidad</span>',`<input id="d_cant" name="cantidad" inputmode="decimal" value="${d?esc(d.cantidad):''}" placeholder="0">`)}</div>`+
+    fld('d_nota','Nota',`<input id="d_nota" name="nota" value="${esc(d?d.nota:'')}" maxlength="140" placeholder="Opcional">`)+`<div class="preview" id="d_prev"></div>`,
+    {onInput:(form,v)=>{const isH=v.tipo!=='feriado';form.querySelector('#d_unit').textContent=isH?'Horas':'Días';const q=num(v.cantidad),s=saldos();
+      form.querySelector('#d_prev').textContent=isH?`${fmtHM(q*60)} h`+(v.tipo==='extra_pago'&&num(cfg().basico)?` = ${money(q*valores().extra)}`:'')+` · pendientes ahora: ${fmtHM(s.extraPend)} h`:`${dias(q)} · te deben ahora: ${dias(s.ferPend)}`;},
+     onSave:async v=>{if(!(num(v.cantidad)>0))return 'Ingresa una cantidad mayor que cero.';await put('devoluciones',id||uid(),{tipo:v.tipo,fecha:v.fecha||hoyISO(),cantidad:num(v.cantidad),nota:(v.nota||'').trim()});},
+     onDelete:d?()=>del('devoluciones',id):null});
+}
+
+/* ---------- acciones ---------- */
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-act]');if(!b)return;
+  const a=b.dataset.act, id=b.dataset.id;
+  try{
+    if(a==='marcar-entrada'){const f=hoyISO(),h=horario(dowDe(f));b.disabled=true;await put('registros',f,{fecha:f,entrada:ahoraHM(),salida:'',ref:h.lab?num(h.ref):0,extraManual:null,nota:''});
+      const fer=feriadoEn(f);
+      if(fer&&!fer.trabajado){await put('feriados',f,Object.assign({},state.feriados[f]||{fecha:f},{trabajado:true,descanso:!h.lab}));toast(`Entrada marcada · feriado: +${dias(h.lab?1:2)}`);}
+      else toast('Entrada marcada');}
+    else if(a==='anio-fer'){state.anioFer+=Number(b.dataset.d);render();}
+    else if(a==='marcar-salida'){const f=hoyISO(),h=horario(dowDe(f));b.disabled=true;
+      const base=state.registros[f]||{fecha:f,entrada:'',ref:h.lab?num(h.ref):0,extraManual:null,nota:''};
+      const r=Object.assign({},base,{salida:ahoraHM()});await put('registros',f,r);
+      const x=r.entrada?extra(r):0;toast(x?`Salida marcada · ${fmtHM(x)} h extra`:'Salida marcada');}
+    else if(a==='editar-gestion')sheetGestion(Number(id));
+    else if(a==='fecha-ingreso'){e.preventDefault();sheetFechaIngreso();}
+    else if(a==='editar-registro')sheetRegistro(id);
+    else if(a==='nuevo-registro')sheetRegistro(null);
+    else if(a==='mes'){const [y,m]=state.mes.split('-').map(Number);const d=new Date(y,m-1+Number(b.dataset.d),1);state.mes=isoDe(d).slice(0,7);render();}
+    else if(a==='nuevo-feriado')sheetFeriado(null);
+    else if(a==='editar-feriado')sheetFeriado(id);
+    else if(a==='nueva-vacacion')sheetVacacion(null);
+    else if(a==='editar-vacacion')sheetVacacion(id);
+    else if(a==='nueva-devolucion')sheetDevolucion(null);
+    else if(a==='editar-devolucion')sheetDevolucion(id);
+  }catch(x){console.warn(x);b.disabled=false;toast('No se pudo guardar');}
+});
+document.addEventListener('change',e=>{const cb=e.target;if(cb.matches&&cb.matches('#fAjustes input[type=checkbox]')){cb.closest('.sched-row').classList.toggle('off',!cb.checked);}});
+document.addEventListener('input',e=>{if(e.target.id==='a_basico'||e.target.id==='a_moneda'){const b=num(document.getElementById('a_basico').value),mo=document.getElementById('a_moneda').value||'S/';const h=b/30/8;
+  document.getElementById('a_formula').innerHTML=b?`${esc(mo)} ${nf.format(b)} ÷ 30 ÷ 8 × 2 = <b>${esc(mo)} ${nf.format(h*2)}</b> por hora extra`:'Hora extra = haber básico ÷ 30 ÷ 8 × 2';}});
+document.addEventListener('submit',async e=>{
+  if(e.target.id!=='fAjustes')return;e.preventDefault();
+  const f=e.target, g=n=>f.elements[n];
+  const c={basico:num(g('basico').value),moneda:(g('moneda').value||'Bs').trim(),tolerancia:num(g('tolerancia').value),vacConteo:g('vacConteo').value,fechaIngreso:g('fechaIngreso').value||'',salidaDesde:g('salidaDesde').value||'15:00',umbralSalida:g('umbralSalida').value||'18:50',extraDesde:g('extraDesde').value||'19:00',
+    saldoIniExtraH:num(g('saldoIniExtraH').value),saldoIniFerDias:num(g('saldoIniFerDias').value),
+    horario:DIAS.map((_,i)=>({lab:g(`h${i}_lab`).checked,ent:g(`h${i}_ent`).value||'08:00',sal:g(`h${i}_sal`).value||'17:00',ref:num(g(`h${i}_ref`).value)}))};
+  try{document.activeElement&&document.activeElement.blur();await putConfig(c);toast('Ajustes guardados');render();}catch(x){console.warn(x);toast('No se pudo guardar');}
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet();});
+window.addEventListener('hashchange',render);
+setInterval(()=>{if(tab()==='hoy'&&!document.getElementById('sheetRoot').firstChild)render();},20000);
+
+render();
+init();
+})();
+</script>
+
+</body>
+</html>
